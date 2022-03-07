@@ -1,0 +1,481 @@
+#-------------Litterfall Thesis Appendix -------------
+library(tidyverse)
+library(agricolae)
+library(dplyr)
+library(ExpDes)
+library(ggsci)
+########## Review this Code for Litterfall ############v
+### Correct Code 2021-09-07 ########
+
+
+
+## Import the data in as data
+##  This is for quantifying litterfall #######
+
+T<-data<-data %>% mutate_if(is.character,factor)
+T<-data %>%filter(Location!='Akoko') %>% group_by(Location,Season,Position,Duplicate,Month) %>% mutate(Cocoa=(Cocoa*10/0.4*1/1000),Shade=(Shade*10/0.4*1/1000),Miscellaneous=(Miscellaneous*10/0.4*1/1000),Total.LF=(Total.LF*10/0.4*1/1000)) %>%
+  summarise(Cocoa=sum(Cocoa),Shade=sum(Shade),
+            Miscellaneous=sum(Miscellaneous),
+            Total.LF=sum(Total.LF))
+
+
+
+### Cocoa Leaves
+mod1<-T %>% lm(Cocoa~Duplicate+Location*Season*Position,data=.)
+anova(mod1)
+HSD.test(mod1,'Location',console=TRUE)
+HSD.test(mod1,'Season',console=TRUE)
+HSD.test(mod1,'Position',console=TRUE)
+HSD.test(mod1,c('Location','Season','Position'),console=TRUE)
+
+### Shade Tree Leave ######
+mod2<-T %>% lm(Shade~Duplicate+Location*Season*Position,data=.)
+anova(mod2)
+HSD.test(mod2,'Location',console=TRUE)
+HSD.test(mod2,'Season',console=TRUE)
+HSD.test(mod2,'Position',console=TRUE)
+HSD.test(mod2,c('Location','Season','Position'),console=TRUE)
+
+#####  MISCELLANEOUS #########
+mod3<-T %>% lm(Miscellaneous~Duplicate+Location*Season*Position,data=.)
+anova(mod3)
+HSD.test(mod3,'Location',console=TRUE)
+HSD.test(mod3,'Season',console=TRUE)
+HSD.test(mod3,'Position',console=TRUE)
+HSD.test(mod3,c('Location','Season','Position'),console=TRUE)
+
+#### TOTAL LITTERFALL ################
+mod4<-T %>% lm(Total.LF~Duplicate+Location*Season*Position,data=.)
+anova(mod4)
+HSD.test(mod4,'Location',console=TRUE)
+HSD.test(mod4,'Season',console=TRUE)
+HSD.test(mod4,'Position',console=TRUE)
+HSD.test(mod4,c('Location','Season','Position'),console=TRUE)
+
+####   INTERRACTION PLOT FOR TOTAL LITTERFALL ######
+
+T$Month<-factor(T$Month,levels = c('2020 Jan','Feb','Mar','Apr','May','Jun',
+                                   'Jul','Aug','Sep','Oct','Nov','Dec','2021 Jan'))
+
+
+theme_set(theme_classic())
+ggplot(T,aes(Season,Total.LF,fill=Location))+
+  stat_summary(geom='bar',fun='mean',position='dodge')+
+  stat_summary(geom='errorbar',fun.data ='mean_se',width=.2,position=position_dodge(.9))+labs(y='Total Litterfall (Mg/DM/ha)',caption = 'Fig 4.3 Effects of season and location on total litterfall production at the study sites')+
+scale_fill_aaas(name='',labels=c('Ago-Owu','Akowonjo Akoko','Ijebu Itele'))+
+scale_y_continuous(expand = c(0,0))+
+  theme(axis.line = element_line(colour = 'black',size=1),
+        axis.ticks = element_line(colour='black',size=1),
+        axis.text = element_text(size=12,family = 'serif',face='bold'),
+        axis.title = element_text(size=12,face='bold',family = 'serif'),
+        legend.title = element_text(size=14,face='bold',family = 'serif'),legend.text = element_text(size=12,face = 'bold',family = 'serif'),
+        plot.caption = element_text(size=12,face = 'bold',family = 'serif',hjust = 0.5),legend.position = 'top')
+
+### Saving the interraction plot ####
+ggsave('p1.tiff',height=5,width = 7,dpi = 300)
+
+
+## R graphics code book
+ggplot(mtcars,aes(mpg,hp))+geom_point()+annotate('text',x=30,y=300,label='r^2==0.78',parse=TRUE)+geom_text(aes(x=28,y=310,label ='y= 0.4x+6'))
+
+
+#### TIME SERIES PLOT FOR Litterfall Production ########
+data1<-data1 %>% mutate_if(is.character,factor)
+
+data1$Month<-factor(data1$Month,levels = c('2020 Jan','Feb','Mar','Apr','May','Jun',
+                                   'Jul','Aug','Sep','Oct','Nov','Dec','2021 Jan'))
+
+theme_set(theme_classic())
+data1 %>%filter(Location!='Akoko') %>% group_by(Location,Month) %>% mutate(Cocoa=(Cocoa*10/0.4*1/1000),Shade=(Shade*10/0.4*1/1000),Miscellaneous=(Miscellaneous*10/0.4*1/1000),Total.LF=(Total.LF*10/0.4*1/1000)) %>%
+  summarise(TL=mean(Total.LF),CC=mean(Cocoa))%>%
+  ungroup() %>%
+  ggplot(aes(Month,TL,col=Location,group=Location))+
+  geom_point(size=2.2)+geom_line(size=1.5)+
+  coord_cartesian(ylim = c(0,2))+
+  scale_color_aaas(name='',labels=c('Ago-Owu','Akowonjo Akoko','Ijebu Itele'))+labs(y='Total litterfall production (Mg DM/ha)',
+                          caption = 'Fig 4.2 Monthly pattern of litterfall production at the study sites')+
+  theme(axis.line = element_line(colour = 'black',size=1),
+        axis.ticks = element_line(colour = 'black',size=1),
+        axis.text = element_text(size=12,face='bold',family = 'serif'),
+        axis.title = element_text(size=12,face='bold',family = 'serif'),
+        legend.text = element_text(size=12,family = 'serif',face='bold'),legend.title=element_text(size=14,face = 'bold',family = 'serif'),
+        plot.caption = element_text(size=12,face='bold',family = 'serif',hjust=0.5),legend.position = 'top')
+
+ggsave('plot2.tiff',height=5,width = 7,dpi = 300)
+
+
+
+### Computation for mean and Standard Error #####
+### I Just change the Location to Position and Season and then maintain this script ########
+T %>% select(Location,Season,Position,Month,Cocoa,Shade,Miscellaneous,Total.LF) %>%
+  group_by(Position) %>%
+  summarise(Cocoa1=mean(Cocoa),n=n(),sd=sd(Cocoa),se=sd/sqrt(n))
+
+
+T %>% select(Location,Season,Position,Month,Cocoa,Shade,Miscellaneous,Total.LF) %>%
+  group_by(Position) %>%
+  summarise(Shade1=mean(Shade),n=n(),sd=sd(Shade),se=sd/sqrt(n))
+
+
+### Computation for mean and Standard Error #####
+T %>% select(Location,Season,Position,Month,Cocoa,Shade,Miscellaneous,Total.LF) %>%
+  group_by(Position) %>%
+  summarise(Miscellaneous1=mean(Miscellaneous),n=n(),sd=sd(Miscellaneous),se=sd/sqrt(n))
+
+
+
+T %>% select(Location,Season,Position,Month,Cocoa,Shade,Miscellaneous,Total.LF) %>%
+  group_by(Position) %>%
+  summarise(Total.LF1=mean(Total.LF),n=n(),sd=sd(Total.LF),se=sd/sqrt(n))
+
+
+
+
+
+
+
+# data %>% group_by(Location,Month) %>% summarise(Total.LF=mean(Total.LF)) %>% mutate(TL=Total.LF*10/0.4*1/1000) %>% ggplot(aes(Month,TL,colour=Location,group=Location))+geom_point()+geom_line()+coord_cartesian(ylim = c(0,2))
+
+
+find.package('data.table') #To find the location of a package in R
+list.files() # List of all files in my current directory
+list.dirs() #List of all my current directory
+colnames(mtcars)[colnames(mtcars)=='mpg']<-'Miles per Gallon' #Renaming specific Column
+colnames(mtcars)[colnames(mtcars)%in%c('disp','hp')]<-c('Displacement','Horse power')
+
+
+data<-read.csv(file.choose(),header=TRUE)
+data<-data %>% filter(Location%in%c('Ago-Owu','Akoko','Ijebu Itele'))
+
+M<-data%>% select(-10) #%>% filter(Month !='Jun')
+
+M$Month<-factor(M$Month,levels = c('2020 Jan','Feb','Mar','Apr','May','Jun',
+                                   'Jul','Aug','Sep','Oct','Nov','Dec','2021 Jan'))
+
+M<-M%>% group_by(Month,Location) %>% summarise(Total=sum(Total.LF/1000/0.4))
+
+N=M %>% filter(Month%in%c('Mar','Jul'))
+
+#------------------Visualization-------------------
+ggplot(M,aes(Month,Total,col=Location,group=Location))+geom_point()+geom_line(size=1.5)+
+theme_classic()+ylab(expression(Litterfall~Production~~(Mg~DM~ha^{-1}~yr^{-1})))+
+xlab('')+theme(legend.title = element_blank())+theme(legend.position = 'top')+
+geom_line(data=N,aes(x=Month,y=Total,col=Location),linetype=3,size=1)+
+scale_color_brewer(palette = 'Set1')
+
+
+
+
+#------------ Mixed Model for Decomposition -------------
+require(nlme)
+require(ggplot2)
+
+#clear environment
+rm(list=ls(all.names=T))
+
+#For a nice background in ggplot
+cleanup <-theme(panel.grid.major=element_blank(),
+                panel.grid.minor=element_blank(),
+                panel.background=element_blank(),
+                axis.line=element_line(color="black"))
+#set working directory and have your data ready (is called mydata)
+mydata<-read.csv('mydata.csv',header=T)
+mydata$Locations=as.factor(mydata$Locations)
+mydata$Incubation=as.factor(mydata$Incubation)
+mydata$Position<-as.factor(mydata$Position)
+
+mydata$Residual.Weight[mydata$Residual.Weight>100]=NA
+
+
+mydata$Locations<-factor(mydata$Locations,levels = c('Ago-Owu','Akoko A','Ijebu Itele'),labels = c('Ago-Owu','Akowonjo Akoko','Ijebu Itele'))
+
+#Discarding values above 105% residual weight
+
+
+res0=nlme(Residual.Weight~100*exp(-k*Days),
+          fixed=list(k~Incubation),
+          random=k~1|Locations,
+          data=mydata,
+          start=c(0.1,0))
+summary(res0)
+anova(res0)
+
+
+
+anyname=as.data.frame(predict(res0))
+anyname$observed=mydata$Residual.Weight
+anyname$incubation=mydata$Incubation
+colnames(anyname)=c('predicted','observed','Incubation')
+View(anyname)
+library(dplyr)
+bag=anyname %>% filter(Incubation=='Decomposition bags')
+frame=anyname %>% filter(Incubation=='Wooden Frames')
+res2=lm(predicted~0+observed,bag)
+res3=lm(predicted~0+observed,frame)
+summary(res2)
+summary(res3)
+View(res2)
+View(res3)
+rsq_bags=as.data.frame=summary(res2)[["adj.r.squared"]]
+rsq_frame=as.data.frame=summary(res3)[["adj.r.squared"]]
+rsq_bags=round(rsq_bags,2)
+rsq_frame=round(rsq_frame,2)
+
+res1=lm(predicted~0+observed,anyname)
+summary(res1)
+label_rsq=summary(res1)[["r.squared"]]
+label=summary(res1)[["adj.r.squared"]]
+
+
+label_rsq_bag=paste('R^2==',rsq_bags)
+label_rsq_frame=paste('R^2==',rsq_frame)
+
+T2=data.frame(Days=rep(0:400,2),
+              Incubation=rep(c('Decomposition bags','Wooden Frames'),each=401),
+              Locations='Ago-Owu')
+
+pred2=predict(res0,newdata=T2,level=0)
+pred2=cbind.data.frame(T2,pred2)
+colnames(pred2)=c('Days','Incubation','Locations','Residual.Weight')
+
+
+
+k_bag=as.data.frame(summary(res0)[["tTable"]])[1,1]
+k_frame=k_bag+as.data.frame(summary(res0)[["tTable"]])[2,1]
+k_bag=round(k_bag,4)
+k_frame=round(k_frame,4)
+
+p_bag=as.data.frame(summary(res0)[["tTable"]])[1,5]
+
+p_frame=as.data.frame(summary(res0)[["tTable"]])[2,5]
+label_bag=paste0(-k_bag,' t')
+label_frame=paste0(-k_frame,' t')
+
+#----------- Visualization Decomposition Pattern --------------------
+
+P01=ggplot(mydata,aes(x=Days,y=Residual.Weight,
+                      colour=Incubation,
+                      shape=Locations))+
+  geom_line(data=pred2[pred2$Incubation=='Decomposition bags',],
+            aes(x=Days,y=Residual.Weight),colour='red')+
+  geom_line(data=pred2[pred2$Incubation=='Wooden Frames',],
+            aes(x=Days,y=Residual.Weight),colour='steelblue')+
+  geom_point(size=1.75)+
+  scale_color_aaas()+
+  scale_alpha(0.2)+
+  labs(x='Time (days)', y='Residual DM Weight (%) ',caption=' Fig 4.4: Decomposition pattern of cocoa litter after incubation\n Legend: DM = Dry matter',colour='Incubation',shape='Locations')+
+    annotate('text',x=150,y=30,size=4,colour='steelblue',
+           family='serif',label=bquote(y== 100* e ^~.(label_frame)))+
+  annotate('text',x=217,y=31,size=5,colour='steelblue',
+           label=' ***')+
+  annotate('text',x=150,y=23,size=4,colour='steelblue',
+           family='serif',label=label_rsq_frame,parse=T)+
+  annotate('text',x=330,y=98,size=4,colour='red',
+           family='serif',label=bquote(y== 100* e ^~.(label_bag)))+
+  annotate('text',x=370,y=92,size=4,colour='red',
+           label=label_rsq_bag,family='serif',parse=T)+
+cleanup+theme(axis.title = element_text(size=12,face = 'bold',family = 'serif'),
+              axis.text = element_text(size=12,family = 'serif'),
+              axis.line = element_line(size=1,colour = 'black'),
+              axis.ticks = element_line(size=1,colour='black'),
+              legend.title = element_text(size=14,face='bold',family='serif'),
+              legend.text = element_text(size=12,family = 'serif'),
+              plot.caption = element_text(size=12,face = 'bold',family = 'serif',hjust=0.5))+
+  coord_cartesian(ylim = c(0,100))
+
+P01
+ggsave('plot1.tiff',height=5.5,width=6.6,dpi = 300)
+
+#------------ Nutrient Release --------------------
+library(tidyverse)
+library(ggsignif)
+library(patchwork)
+library(cowplot)
+T1<-data %>% filter(`Time(Month)`!='2019 Dec')
+T1$`Time(Month)`<-factor(T1$`Time(Month)`,levels = c('2020 Jun','Aug','Nov',
+                                                     '2021 Jan'))
+T1$location<-factor(T1$location,levels = c('Ago-Owu','Akowonjo-Akoko','Ijebu-Itele'),labels = c('Ago-Owu','Akowonjo Akoko','Ijebu Itele'))
+
+theme_set(theme_test())
+#Nitrogen Release
+p1<-ggplot(T1,aes(`Time(Month)`,`Nitrogen.Released.(%)`,fill=Incubation))+
+  stat_boxplot(geom='errorbar')+geom_boxplot()+
+  scale_fill_aaas()+theme(axis.title = element_text(size=12,face='bold',family = 'serif'),axis.text = element_text(size=12,family = 'serif'),legend.text = element_text(size=14,family = 'serif',face='bold'),strip.background = element_rect(fill=NA,colour = 'black'),strip.text.x = element_text(size = 14,face = 'bold',family = 'serif'),legend.title = element_blank(),plot.tag = element_text(size=12,face = 'bold',family = 'serif'))+
+  facet_grid(~location)+
+  #theme(axis.title = element_text(size=33))+
+  #theme(axis.text.x = element_text(size=33,hjust=1,angle = 45,vjust=1))+
+  #theme(axis.text.y = element_text(size=35))+
+  #theme(strip.text.x = element_text(size=35,face='bold'))+
+  #theme(legend.title = element_text(size=35,face='bold'))+
+  #theme(legend.text = element_text(size=33))+
+  labs(y='Nitrogen release (%)',x='Time (month)',tag = '(a)')+
+  geom_signif(comparisons = list(c('2020 Jun','Aug'),
+                                 c('2020 Jun','Nov'),
+                                 c('2020 Jun','2021 Jan'),
+                                 c('Aug','Nov'),
+                                 c('Aug','2021 Jan'),
+                                 c('Nov','2021 Jan')),
+              map_signif_level = TRUE,step_increase = 0.18,textsize = 5,
+              y_position =55,vjust=.3,hjust=.4)+
+  theme(legend.position = 'top')
+
+ggsave('plot1.tiff',width = 7,height=5,dpi = 300)
+#Phosphorus Release
+p2<-ggplot(T1,aes(`Time(Month)`,`Phosphorus.Released.(%)`,fill=Incubation))+
+  stat_boxplot(geom='errorbar')+geom_boxplot(show.legend = FALSE)+
+  scale_fill_aaas()+theme(axis.title = element_text(size=12,face='bold',family = 'serif'),axis.text = element_text(size=12,family = 'serif'),legend.text = element_text(size=14,family = 'serif',face='bold'),strip.background = element_rect(fill=NA,colour = 'black'),strip.text.x = element_text(size = 14,face = 'bold',family = 'serif'),legend.title = element_blank(),plot.tag = element_text(size=12,face = 'bold',family = 'serif'))+
+  facet_grid(~location)+
+  # theme(axis.title = element_text(size=28))+
+  # theme(axis.text.y = element_text(size=28))+
+  # theme(axis.text.x = element_text(size=28,vjust=1,hjust=1,angle=45))+
+  # theme(strip.text.x = element_text(size=28,face='bold'))+
+  # theme(legend.title = element_text(size=35,face='bold'))+
+  # theme(legend.text = element_text(size=28))+
+  labs(y='Phosphorus release (%)',x='Time (month)',tag = '(b)')+
+  geom_signif(comparisons = list(c('2020 Jun','Aug'),
+                                 c('2020 Jun','Nov'),
+                                 c('2020 Jun','2021 Jan'),
+                                 c('Aug','Nov'),
+                                 c('Aug','2021 Jan'),
+                                 c('Nov','2021 Jan')),
+              map_signif_level = TRUE,step_increase = 0.1,textsize = 5,
+              y_position=60,vjust=.3,hjust=.4)
+ggsave('plot1.tiff',width = 7,height=5,dpi = 300)
+
+
+#Potassium Release
+p3<-ggplot(T1,aes(`Time(Month)`,`Potassium.Released.(%)`,fill=Incubation))+
+  stat_boxplot(geom='errorbar')+geom_boxplot(show.legend = FALSE)+
+  scale_fill_aaas()+theme(axis.title = element_text(size=12,face='bold',family = 'serif'),axis.text = element_text(size=12,family = 'serif'),legend.text = element_text(size=14,family = 'serif',face='bold'),strip.background = element_rect(fill=NA,colour = 'black'),strip.text.x = element_text(size = 14,face = 'bold',family = 'serif'),plot.tag = element_text(size=12,face = 'bold',family = 'serif'))+
+  facet_grid(~location)+
+  # theme(axis.title = element_text(size=28))+
+  # theme(axis.text.x = element_text(size=28,hjust=1,vjust=1,angle=45))+
+  # theme(axis.text.y = element_text(size=28))+
+  # theme(axis.title = element_text(size=28))+
+  # theme(strip.text.x = element_text(size=28,face='bold'))+
+  # theme(legend.title = element_text(size=35,face='bold'))+
+  # theme(legend.text = element_text(size=28))+
+  labs(y='Potassium release (%)',x='Time (month)',tag = '(c)')+
+  geom_signif(comparisons = list(c('2020 Jun','Aug'),
+                                 c('2020 Jun','Nov'),
+                                 c('2020 Jun','2021 Jan'),
+                                 c('Aug','Nov'),
+                                 c('Aug','2021 Jan'),
+                                 c('Nov','2021 Jan')),
+              map_signif_level = TRUE,step_increase = 0.1,textsize = 4,
+              vjust=.3,hjust=.3,y_position = 99.9)
+
+ggsave('plot1.tiff',width = 7,height=5,dpi = 300)
+
+#p1/p2/p3+plot_annotation(tag_levels = c(('A')))
+
+
+
+#--------------- Map of Study Area ------------------
+library(leaflet)
+library(mapview)
+leaflet()%>%
+  addTiles()%>%
+  addMarkers(lng=c(4.2031,5.6203,4.3667),lat=c(7.1482,7.4383,6.9833))
+popup = ('Study Area')
+
+
+######### Meteorological Data Script #######
+## The Excel File is on my Desktop ###
+library(tidyverse)
+library(reshape2)
+library(ggplot2)
+library(cowplot)
+library(grid)
+library(gridExtra)
+
+setwd(dir='~/../Desktop')
+datt=readxl::read_excel('Femi RF data graph.xlsx') #I modify slightly your file
+names(datt)
+
+datt$Month=factor(datt$Month,levels=c("2020-Jan","Feb","Mar",
+                                      "Apr","May","Jun","Jul","Aug",
+                                      "Sep","Oct","Nov",
+                                      "Dec","2021-Jan"))
+######## This is used to create new categorical variable in my data ####3#3
+datt$Location<-ifelse(datt$Location=='Akoko A','Akowonjo Akoko',ifelse(datt$Location=='Ago-Owu','Ago-Owu','Ijebu Itele'))
+
+
+datt$Location=as.factor(datt$Location)
+
+#N=datt %>% filter(Month%in%c('2020-Jan','May')) # I don't know if this is what you really want?!
+# M=cbind.data.frame(Month=rep(c('2020-Jan','Jun'),2),
+#                    Location=rep(c('Akoko A','Ijebu Itele'),each=2),
+#                    Temperature=c(100,25.76,50,25.21),
+#                    Humidity=c(120,90.57,105,97.89))
+
+
+datt$Month=as.factor(datt$Month)
+#datt$Location=as.factor(datt$Location)
+#Original graph
+#T1$Hum=T1$Humidity/3.9
+P00=ggplot(datt,aes(Month,Rainfall,group=1))+
+  geom_col(fill='blue')+
+  geom_line(aes(y=Humidity),size=1.75,col='black')+
+  geom_line(aes(y=Temperature),size=1.75,col='red')+
+  geom_point(aes(y=Humidity),size=2,col='black')+
+  geom_point(aes(y=Temperature),size=2,col='red')+
+  # geom_line(data=N,aes(x=Month,y=Humidity,col='black'),show.legend = FALSE)+
+  # geom_line(data=N,aes(x=Month,y=Temperature,col='red'),show.legend = FALSE)+
+  # geom_line(data=N,aes(x=Month,y=Humidity),size=1,col='black')+
+  # geom_line(data=N,aes(x=Month,y=Temperature),size=1,col='red')+
+  labs(x='Time (Month)',y=NULL,caption = 'Fig 4.1: Monthly weather pattern at the study sites')+
+  facet_grid(~Location)+theme_test()+theme(strip.background = element_rect(colour = 'black',fill=NA))+coord_cartesian(ylim = c(0,400))+
+  theme(axis.title = element_text(size=12,face='bold',family = 'serif'),
+        axis.text.x = element_text(size=8,face='bold',family='serif',angle=45,hjust=1),
+        axis.ticks = element_line(size=1),strip.text = element_text(size=14,face='bold',family = 'serif'),axis.text.y = element_text(size=12,face='bold',family = 'serif'),legend.title = element_text(size=14,face='bold',family = 'serif'),
+        legend.text = element_text(size=12,face = 'bold',family = 'serif'),
+        plot.caption = element_text(size = 14,face = 'bold',hjust = 0.5))
+
+# theme(strip.text.x = element_text(size=14,family = 'serif'))+
+#   theme(axis.title = element_text(size=14,family = 'serif'))+
+#   theme(axis.text.x = element_text(size=14,angle = 40,hjust=1,family = 'serif'))+
+#   theme(legend.text = element_text(size=14,family = 'serif'))+
+#   theme(axis.text.y = element_text(size=14,family = 'serif'))+
+#   ylim(0,400)
+
+ggsave('RF.tiff',width = 11,height = 9,dpi = 350)
+
+
+#extract legend
+T2=melt(datt[,-1],measure.vars=c('Rainfall','Temperature','Humidity'),
+        variable.name='Parm',value.name='Reading')
+T2$Parm=as.character(T2$Parm)
+T2$Parm[T2$Parm=='Rainfall']='Rainfall (mm)'
+T2$Parm[T2$Parm=='Humidity']='Humidity (%)'
+T2$Parm[T2$Parm=='Temperature']='Temperature (°C)'
+
+
+P01=ggplot(T2,aes(Month,Reading,colour=Parm))+
+  geom_point()+
+  geom_line()+
+  scale_color_manual(values=c('black','blue','red'))+
+  labs(colour='Parameter')+
+  theme_bw()+
+  theme(legend.title=element_blank())+
+  theme(legend.text=element_text(size=20,face='bold',family = 'serif'))
+
+g_legend<-function(a.gplot){
+  tmp <- ggplot_gtable(ggplot_build(a.gplot))
+  leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+  legend <- tmp$grobs[[leg]]
+  return(legend)}
+l_grob=g_legend(P01)
+
+#merge original graph and extracted legend
+#then save the output as jpg file
+
+tiff('Fig1.tiff',height=15,width=25,units='cm',res = 600)
+P01
+grid.arrange(arrangeGrob(P00,right=l_grob))
+#ggsave('fig01.jpg')
+#ggsave('Fig1.tiff',height = 6,width = 12,dpi = 300)
+ggsave('F1.tiff',width = 9,height = 6,dpi = 300)
+
+
+

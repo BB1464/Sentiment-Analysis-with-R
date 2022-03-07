@@ -1,0 +1,44 @@
+
+
+###########################################################################
+###########################################################################
+###                                                                     ###
+###                             DATA IMPORT                             ###
+###                                                                     ###
+###########################################################################
+###########################################################################
+
+library(readxl)
+library(dplyr)
+library(janitor)
+
+Augmented <- read_excel("C:/Users/USER/Desktop/Augmented.xlsx")
+
+
+###########################################################################
+###########################################################################
+###                                                                     ###
+###                        AUGMENTED DESIGN IN R                        ###
+###                                                                     ###
+###########################################################################
+###########################################################################
+
+library(agricolae)
+
+Augmented <- clean_names(Augmented)
+
+Genotype <- c(Augmented$vi_no)
+
+
+Checks <- c('TPT-11','TPT-12','TPT-16')
+
+FieldPlan <- design.dau(trt1 = Checks,trt2 = Genotype,r = 8,seed = 100,randomization = TRUE,name = 'Treatment')
+
+
+FieldPlan$book
+
+
+# All duplicated elements
+Augmented %>%
+  filter(vi_no %in% unique(.[["vi_no"]][duplicated(.[["vi_no"]])]))
+

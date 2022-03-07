@@ -1,0 +1,212 @@
+#Main and Interaction Bar Plot in R
+data1<-read.csv('data1.csv',header=T)
+attach(data1)
+str(genotype)
+genotype<-as.factor(genotype)
+gender<-as.factor(gender)
+str(gender)
+
+library(stats)
+aov.res<-aov(activity~genotype+gender+genotype:gender)
+anova(aov.res)
+
+library(agricolae)
+LSD_A = LSD.test(y=activity,
+                 trt=genotype,
+                 DFerror = aov.res$df.residual,
+                 MSerror = deviance(aov.res)/aov.res$df.residual,
+                 alpha = 0.05,
+                 p.adj = "bonferroni",
+                 group = TRUE,
+                 console = TRUE)
+
+LSD_B = LSD.test(y=activity,
+                 trt=gender,
+                 DFerror = aov.res$df.residual,
+                 MSerror = deviance(aov.res)/aov.res$df.residual,
+                 alpha = 0.05,
+                 p.adj = "bonferroni",
+                 group = TRUE,
+                 console = TRUE)
+
+
+LSD_AB = LSD.test(y=activity,
+                 trt=genotype:gender,
+                 DFerror = aov.res$df.residual,
+                 MSerror = deviance(aov.res)/aov.res$df.residual,
+                 alpha = 0.05,
+                 p.adj = "bonferroni",
+                 group = TRUE,
+                 console = TRUE)
+library(dplyr)
+ascend_A = LSD_A$groups %>%
+  group_by(rownames(LSD_A$groups)) %>%
+  arrange(rownames(LSD_A$groups))
+print(ascend_A)
+
+
+ascend_B = LSD_B$groups %>%
+  group_by(rownames(LSD_B$groups)) %>%
+  arrange(rownames(LSD_B$groups))
+print(ascend_B)
+
+
+ascend_AB = LSD_AB$groups %>%
+  group_by(rownames(LSD_AB$groups)) %>%
+  arrange(rownames(LSD_AB$groups))
+print(ascend_AB)
+
+library(dplyr)
+###Mean and SE for first factor
+MeanSE_A = data1 %>%
+  group_by(genotype) %>%
+  summarise(avg_A = mean(activity),
+            se = sd(activity)/sqrt(length(activity)))
+print(MeanSE_A)
+attach(MeanSE_A)
+
+
+MeanSE_B = data1 %>%
+  group_by(gender) %>%
+  summarise(avg_B = mean(activity),
+            se = sd(activity)/sqrt(length(activity)))
+print(MeanSE_B)
+attach(MeanSE_B)
+
+
+
+MeanSE_AB = data1 %>%
+  group_by(genotype,gender) %>%
+  summarise(avg_AB = mean(activity),
+            se = sd(activity)/sqrt(length(activity)))
+print(MeanSE_AB)
+attach(MeanSE_AB)
+
+library(ggplot2)
+p1 = ggplot(MeanSE_A, aes(x=genotype,
+                          y=avg_A))
+print(p1)
+
+#Create the first object for factor A
+plotA = p1 + geom_bar(stat='identity',
+                      color='black',
+                      position= position_dodge(width=0.9),
+                      width=0.8)
+print(plotA)
+
+#Placing error bars
+plotB = plotA + geom_errorbar(aes(ymax=avg_A+se,
+                                  ymin=avg_A-se),
+                              position=position_dodge(width=0.9),
+                              width=0.25)
+print(plotB)
+
+plotC = plotB + labs(title = '',
+                     x='genotype',
+                     y='MPI Activity')
+print(plotC)
+
+#Placing letters above the error bars
+plotD = plotC + geom_text(aes(x= genotype,
+                              y=avg_A + se,
+                              label=as.matrix(ascend_A$groups)),
+                          position = position_dodge(width = 0.9),
+                          vjust= -(0.5))
+print(plotD)
+
+
+
+###Ploting Second Factor
+p2 = ggplot(MeanSE_B,aes(x=gender,y=avg_B))
+print(p2)
+
+plotA = p2 + geom_bar(stat= 'identity',
+                      color = 'black',
+                      position=position_dodge(width=0.9))
+print(plotA)
+
+plotB = plotA + geom_errorbar(aes(ymax=avg_B+se,
+                                  ymin=avg_B-se),
+                              position = position_dodge(width = 0.9),
+                              width=0.25)
+print(plotB)
+
+plotC = plotB + labs(title = '',x='gender',y='MPI Activity')
+print(plotC)
+
+plotD = plotC + geom_text(aes(x=gender,
+                              y=avg_B+se,
+                              label=as.matrix(ascend_B$groups)),
+                          position = position_dodge(width = 0.9),
+                          vjust=-(0.5))
+print(plotD)
+
+
+###Ploting Bar Plot for Interraction Terms
+library(ggplot2)
+p3 = ggplot(MeanSE_AB,aes(x=gender,y=avg_AB,fill=factor(genotype)))+theme_test()
+
+print(p3)
+
+plotA = p3 +
+  geom_bar(stat='identity',
+           color='black',
+           position = position_dodge(width = 0.9))
+print(plotA)
+
+plotB = plotA +
+  scale_fill_manual(values = gray(1:3/3),
+                    labels=c('FF','FO','OO'))
+print(plotB)
+
+plotC = plotB +
+  geom_errorbar(aes(ymax=avg_AB+se,
+                    ymin=avg_AB-se),
+                position = position_dodge(width = 0.9),
+                width=0.25)
+print(plotC)
+
+plotD = plotC +
+  labs(title='',
+       x='gender',
+       y='MPI Activity',
+       fill='genotype')
+print(plotD)
+
+plotE = plotD +
+  geom_text(aes(x=gender,
+                y=avg_AB+se,
+                label=as.matrix(ascend_AB$groups)),
+            position = position_dodge(width = 0.9),
+            vjust = -(0.5))
+print(plotE)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

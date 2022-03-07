@@ -1,0 +1,11 @@
+#--------------- Map of Study Area ------------------
+library(leaflet)
+library(mapview)
+leaflet()%>%
+  addTiles()%>%
+  addMarkers(lng=c(4.2031,5.6203,4.3667),lat=c(7.1482,7.4383,6.9833))
+popup = ('Study Area')
+
+# Ago-Owu
+# Akoko
+# IJebu-Itele

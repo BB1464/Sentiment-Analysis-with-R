@@ -1,0 +1,401 @@
+---
+title: "Sentiment Analysis with R"
+subtitle: "Case Study: Twitter Data"
+author: "Oluwafemi Oyedele"
+date: "12/20/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Goals of this session
+By the end of this session you will:
+
+- Understand the basics of the `rtweet` package and use it to fetch tweets
+- tokenize tweets and clean it up for sentiment analysis
+- Use one or two sentiment lexicons to analyze the sentiment of tweets
+- Visualize the sentiments
+- Evaluate Result
+
+
+
+## Packages
+
+Below are the list of packages we are going to be using. If you don't have them installed please do so by using `install.packages()`
+
+```{r packages, message=FALSE, warning=FALSE}
+library(rtweet) # to fetch tweets from twitter using Twitter APIs
+library(tidytext) # for making tidy text dataframe
+library(tidyverse) # galaxy of data manipulation and visualization packages; ggplot2, dplyr, readr, tidyr,  tibble
+library(wordcloud) # to creat cloud of words
+library(RColorBrewer) # for nice color palette
+```
+
+## Getting Tweets
+`rtweet` is a R client for accessing Twitter’s REST and stream APIs.
+
+With `rtweet` all you need is a Twitter account details (user name and password) and you can be up in running in minutes!
+
+
+How is this possible, first starting with the following assumption
+(a) you are working in an interactive/live session of R and 
+(b) you have installed the {httpuv} package.
+- All that is left for you to authorize the embedded rstats2twitter app (approve the browser popup), and your token will be created and saved/stored (for future sessions) for you!
+
+But you can still choose to go the long way...
+Create a twitter app so as to obtain and use Twitter API access tokens 
+checkout this [link](https://rtweet.info/articles/auth.html).
+
+FYI
+![pro_con](../figures/pro_con of rstats2twitter application.PNG)
+
+### Getting Tweets using the REST API via `get_timeline()`
+For this demo, we are going to be getting tweets and retweets from the official pages of PDP and APC
+
+```{r APC and PDP tweets, eval=FALSE, include=T}
+## get most recent 3200 tweets posted by Official APC twitter account
+apc_tweets <- get_timeline("APCNigeria", n = 3200)
+pdp_tweets <- get_timeline("OfficialPDPNig", n = 3200)
+```
+## Load data
+```{r saving data, include=FALSE}
+# save_as_csv(x = apc_tweets, file_name = "apc_tweets.csv")
+# save_as_csv(x = pdp_tweets, file_name = "pdp_tweets.csv")
+# save(apc_tweets, pdp_tweets, file="parties_tweets.rda")
+load("parties_tweets.rda")
+```
+
+### Inspect the data
+```{r dimenstion}
+dim(apc_tweets)
+dim(pdp_tweets)
+```
+
+```{r}
+colnames(apc_tweets)
+```
+```{r}
+# head(apc_tweets[,c('text',"is_retweet")])
+pdp_tweets[1:5,] %>% 
+  mutate(hashtags2 = paste0(unlist(hashtags), sep=",")) %>% 
+  select(user_id, created_at, screen_name, source, text, is_retweet, hashtags2) %>% 
+  knitr::kable() %>% 
+  kableExtra::kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+
+
+
+## Tidy Data
+### Data Cleaning 
+Merging the two sets together (Just to carryout the cleaning process at once)
+```{r}
+parties_tweet <- bind_rows(apc_tweets, pdp_tweets) %>% 
+  rename(party = screen_name, tweet = text) # Renaming screen_name to party and text to tweet
+```
+
+Extract the tweets with corresponding partys (APCNigeria and OfficialPDPNig)
+```{r}
+tweets_df <-parties_tweet %>% 
+  filter(!is_retweet) %>% #Removing Retweets
+  select(status_id, party,tweet,created_at)# status_id will serve as a unique identifier for each tweet
+```
+
+### Creating a tidy dataframe
+Using `unnest_tokens()` to make a tidy data frame of all the words in our tweets dataframe. 
+```{r}
+remove_reg <- "&amp;|&lt;|&gt;"
+
+tidy_tweet_df <- tweets_df %>% 
+  mutate(tweet = gsub("http.*","", tweet )) %>%  # removing url
+  mutate(tweet = gsub("http.*","", tweet  )) %>%  # removing url
+  mutate(tweet = stringr::str_remove_all(tweet, remove_reg)) %>%  # removing some foreign characters
+  unnest_tokens(input = tweet, output = word ) %>%  # tokenization 
+  filter(!word %in% stop_words$word,   #removing stopwords
+         !word %in% str_remove_all(stop_words$word, "'"),     
+         str_detect(word, "[a-z]"))  # Removing non-alphanumeric character
+
+
+knitr::kable(bind_rows(head(tidy_tweet_df), tail(tidy_tweet_df)))                    
+```
+
+
+## Exploratory Analysis
+
+### Tweet Trend
+```{r}
+tweets_df %>% 
+  group_by(party) %>% 
+  ts_plot(by = "days") +
+  facet_grid(party~.) +
+  theme_minimal() +
+  labs(title = "Tweets Trend by Party", x="", y = "tweet freq.") +
+  theme(legend.position = "none")
+```
+
+### Popular words
+```{r}
+popular_words <- tidy_tweet_df %>% 
+  group_by(party) %>%
+  count(word, party, sort = TRUE) %>%
+  slice(seq_len(20)) %>% # top 10
+  ungroup() %>%
+  arrange(party, n) %>%
+  mutate(row = row_number()) 
+
+popular_words %>%
+  ggplot(aes(row, n, fill = party)) +
+    geom_col(show.legend = F) +
+    labs(x = NULL, y = "Word Freq") +
+    ggtitle("Popular Words by Political Parties") + 
+    # theme_lyrics() +  
+    facet_wrap(~party, scales = "free") +
+    scale_x_continuous(  # This handles replacement of row 
+      breaks = popular_words$row, # notice need to reuse data frame
+      labels = popular_words$word) +
+    coord_flip()
+```
+
+### Generate Wordcloud
+APC
+```{r apc_wordcloud}
+apc_freq = tidy_tweet_df %>% 
+  filter(party == "APCNigeria") %>% 
+  count(word, name = "freq", sort = T)  #%>% 
+  
+set.seed(1234) # for reproducibility 
+summary(apc_freq)
+wordcloud(words = apc_freq$word, freq = apc_freq$freq,
+          min.freq = 1, max.words=150, 
+          random.order=FALSE, rot.per=0.35,
+          colors=brewer.pal(8, "Dark2"))
+
+```
+
+PDP
+```{r pdp_wordcloud}
+pdp_freq = tidy_tweet_df %>% 
+  filter(party == "OfficialPDPNig") %>% 
+  count(word, name = "freq", sort = T)  #%>% 
+
+set.seed(2323) 
+with(pdp_freq,
+  wordcloud(words = word, freq = freq,
+          min.freq = 1, max.words=150, 
+          random.order=FALSE, rot.per=0.35,
+          colors=brewer.pal(8, "Dark2")))
+```
+### Removing Some words
+```{r}
+tidy_tweet_df %>% 
+  # filter(party == "APCNigeria") %>% 
+  count(word, sort = T)
+
+
+custom_word = tibble(word = c("vice", "rail"))
+```
+
+```{r}
+clean_tidy_tweet_df <- tidy_tweet_df %>% 
+  anti_join(custom_word)
+```
+
+
+## Sentiment Analysis
+For this we will be using the Bing Lexicon
+```{r}
+head(get_sentiments(lexicon = "bing"))
+```
+
+```{r}
+parties_tweet_senti_bing <- clean_tidy_tweet_df %>%
+              inner_join(get_sentiments("bing"))
+
+parties_tweet_senti_nrc <- tidy_tweet_df %>%
+  inner_join(get_sentiments("nrc"))
+```
+```{r}
+parties_tweet_senti_bing
+```
+
+
+## Result
+### Overall Sentiment
+```{r}
+parties_tweet_senti_bing_res <- parties_tweet_senti_bing %>%
+  group_by(status_id, party)  %>%
+  count(sentiment) %>% # count the # of positive & negative words
+  spread(sentiment, n, fill = 0) %>% # made data wide rather than narrow
+  mutate(sentiment_score = positive - negative) %>% # Calculate Sentiment Score
+  mutate(sentiment = ifelse(sentiment_score < 0, "Negative", ifelse(sentiment_score > 0,"Positive", "Neutral")) ) %>% # Calculate Sentiment Score
+  ungroup()
+  
+  
+table(parties_tweet_senti_bing_res$sentiment)
+```
+Quick Check
+```{r}
+knitr::kable(
+parties_tweet_senti_bing_res %>% 
+  slice(seq_len(20)) %>%
+  left_join(tweets_df) %>% 
+  select(created_at, status_id, party, tweet, positive, negative, sentiment)
+)
+
+
+```
+
+## Boxplot of Overall Sentiment
+```{r}
+# plot of sentiment by party
+ggplot(parties_tweet_senti_bing_res, aes(x = party, y = sentiment_score, color = party)) + 
+  geom_boxplot() + # draw a boxplot for each party
+  theme_minimal() +
+  theme(legend.position = "none") +
+  geom_hline(yintercept = 0, size = .2, alpha = .2, color = "blue")
+```
+
+
+```{r}
+parties_tweet_senti_bing_res %>% 
+  group_by(party)  %>% 
+      count(sentiment) %>% # count the # of positive & negative words
+      ggplot(aes(x = party, y = n, fill = sentiment)) +
+      geom_bar(stat = "identity", position = "dodge") +
+      labs(title = "Overall Sentiment of APC and PDP tweets", x = "Party", y = "Sentiment Freq.") +
+  theme_minimal()
+```
+```{r}
+  parties_tweet_senti_bing_res %>% 
+    group_by(party) %>% 
+    summarise(all_sentiment = sum(sentiment_score)) %>% 
+  ungroup() %>% 
+  ggplot(aes(x = party, y = all_sentiment, fill = party)) +
+  geom_bar(stat = "identity", width = .5) + 
+    geom_hline(yintercept = 0, size = 2) +
+  # coord_flip()  + 
+    theme_minimal()  +
+      labs(title = "Overall Sentiment of APC and PDP tweets", x = "Party", y = "Sentiment Score") +
+  theme_minimal()
+```
+
+```{r}
+apc_word_counts <- parties_tweet_senti_bing %>%
+  filter(party == "APCNigeria")  %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+apc_word_counts %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(title = "APC - Top Polarize Words",
+       y = "Contribution to sentiment",
+       x = NULL) +
+  coord_flip()
+```
+
+```{r}
+pdp_word_counts <- parties_tweet_senti_bing %>%
+  filter(party == "OfficialPDPNig")  %>%
+  count(word, sentiment, sort = TRUE) %>%
+  ungroup()
+
+pdp_word_counts %>%
+  group_by(sentiment) %>%
+  top_n(10) %>%
+  ungroup() %>%
+  mutate(word = reorder(word, n)) %>%
+  ggplot(aes(word, n, fill = sentiment)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~sentiment, scales = "free_y") +
+  labs(title = "PDP - Top Polarize Words",
+       y = "Contribution to sentiment",
+       x = NULL) +
+  coord_flip()
+```
+
+#### Comparison Word Cloud
+```{r message=FALSE, warning=FALSE}
+library(reshape2)
+
+apc_word_counts %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("#f74d23", "green"),
+                   max.words = 100)
+```
+
+```{r message=FALSE, warning=FALSE}
+pdp_word_counts %>%
+  acast(word ~ sentiment, value.var = "n", fill = 0) %>%
+  comparison.cloud(colors = c("#f74d23", "green"),
+                   max.words = 100)
+```
+
+
+
+
+
+
+
+### Sentiment Per tweet
+```{r}
+parties_tweet_senti_bing_res %>% 
+  ggplot(aes(x = row_number(status_id), y = sentiment_score )) +
+  geom_col(aes(fill = sentiment)) + 
+    geom_hline(yintercept = 0, size = .7)  +
+    # geom_smooth(method = "auto") + # pick a method & fit a model
+    facet_grid(party~.) 
+```
+
+
+
+
+
+## Improving the Result
+### 1. Normalizing for text length
+How does normalizing for text length (for each tweet) change the outcome of the analysis?
+```{r eval=FALSE, include=FALSE, paged.print=FALSE}
+wordcounts <- tidy_books %>%
+  group_by(book, chapter) %>%
+  summarize(words = n())
+
+
+tidy_books %>%
+  semi_join(bingnegative) %>%
+  group_by(book, chapter) %>%
+  summarize(negativewords = n()) %>%
+  left_join(wordcounts, by = c("book", "chapter")) %>%
+  mutate(ratio = negativewords/words) %>%
+  filter(chapter != 0) %>%
+  top_n(1) %>%
+  ungroup()
+```
+
+
+### 2. Using a different sentiment lexicon
+[Hint](https://www.kaggle.com/kakiac/sentiment-analysis-with-r-exercise-2)
+# Does using a different lexicon result in a different outcome for your
+# analysis? What does this suggest about the original analysis?
+
+
+
+### 3. Creating your own sentiment lexicon
+[Hint](https://www.kaggle.com/kakiac/sentiment-analysis-with-r-exercise-3/data)
+# How does this affect your analysis? Do you think it would have had a different 
+# effect if you had annotated 500 words instead? 50,000? Would your new lexicon
+# be helpful in analyzing product reviews? Tweets?
+
+
+
+
+
+
+
+
